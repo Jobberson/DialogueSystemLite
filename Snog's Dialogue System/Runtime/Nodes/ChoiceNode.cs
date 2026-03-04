@@ -6,9 +6,15 @@ using XNode;
 
 namespace SnogDialogue.Runtime
 {
-    [CreateNodeMenu("Snog Dialogue/Lite/Choice")]
+    [CreateNodeMenu("Snog/DialogueSystem/Lite/Choice")]
     public sealed class ChoiceNode : DialogueNode
     {
+        [SerializeField]
+        private LockedChoiceDisplay lockedChoiceDisplay = LockedChoiceDisplay.Hide;
+
+        [SerializeField]
+        private string lockedSuffix = " (Locked)";
+
         [SerializeField]
         [Output(dynamicPortList = true)]
         private List<ChoiceOption> options = new List<ChoiceOption>();
@@ -18,8 +24,10 @@ namespace SnogDialogue.Runtime
 
         public override IEnumerator Execute(DialogueRuntime runtime)
         {
-            List<string> labels = new List<string>(options.Count);
+            List<ChoiceUIEntry> entries = new List<ChoiceUIEntry>(options.Count);
             List<int> optionIndexMap = new List<int>(options.Count);
+
+            bool anyInteractable = false;
 
             for (int i = 0; i < options.Count; i++)
             {
@@ -27,7 +35,7 @@ namespace SnogDialogue.Runtime
 
                 bool allowed = ConditionEvaluator.EvaluateAll(option.Conditions, runtime.Context);
 
-                if (!allowed)
+                if (!allowed && lockedChoiceDisplay == LockedChoiceDisplay.Hide)
                 {
                     continue;
                 }
@@ -39,29 +47,41 @@ namespace SnogDialogue.Runtime
                     label = $"Choice {i + 1}";
                 }
 
-                labels.Add(label);
+                bool interactable = allowed;
+
+                if (!allowed && lockedChoiceDisplay == LockedChoiceDisplay.Disable)
+                {
+                    label += lockedSuffix;
+                }
+
+                entries.Add(new ChoiceUIEntry(label, interactable));
                 optionIndexMap.Add(i);
+
+                if (interactable)
+                {
+                    anyInteractable = true;
+                }
             }
 
-            if (labels.Count == 0)
+            if (entries.Count == 0 || !anyInteractable)
             {
                 runtime.SetNext(GetNextFromPort("fallback"));
                 yield break;
             }
 
-            int selectedVisibleIndex = -1;
+            int selectedIndex = -1;
 
-            runtime.UI.ShowChoices(labels, (index) =>
+            runtime.UI.ShowChoices(entries, (index) =>
             {
-                selectedVisibleIndex = index;
+                selectedIndex = index;
             });
 
-            while (selectedVisibleIndex < 0)
+            while (selectedIndex < 0)
             {
                 yield return null;
             }
 
-            int originalIndex = optionIndexMap[selectedVisibleIndex];
+            int originalIndex = optionIndexMap[selectedIndex];
 
             DialogueNode next = GetNextFromDynamicPort("options", originalIndex);
             runtime.SetNext(next);
@@ -83,6 +103,12 @@ namespace SnogDialogue.Runtime
             }
 
             return port.Connection.node as DialogueNode;
+        }
+
+        public enum LockedChoiceDisplay
+        {
+            Hide,
+            Disable
         }
 
         [Serializable]

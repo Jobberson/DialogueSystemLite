@@ -70,7 +70,7 @@ namespace SnogDialogue.Runtime
             typeCoroutine = StartCoroutine(TypeLine(fullLine));
         }
 
-        public void ShowChoices(IReadOnlyList<string> choices, Action<int> onChoiceSelected)
+        public void ShowChoices(IReadOnlyList<ChoiceUIEntry> choices, Action<int> onChoiceSelected)
         {
             choiceSelected = onChoiceSelected;
 
@@ -86,17 +86,33 @@ namespace SnogDialogue.Runtime
                 Button btn = Instantiate(choiceButtonPrefab, choicesContainer);
                 spawnedChoiceButtons.Add(btn);
 
+                ChoiceUIEntry entry = choices[i];
+
+                btn.interactable = entry.Interactable;
+
                 TMP_Text label = btn.GetComponentInChildren<TMP_Text>();
 
                 if (label != null)
                 {
-                    label.text = choices[i];
+                    label.text = entry.Text;
+
+                    if (!entry.Interactable)
+                    {
+                        label.alpha = 0.5f;
+                    }
+                    else
+                    {
+                        label.alpha = 1f;
+                    }
                 }
 
-                btn.onClick.AddListener(() =>
+                if (entry.Interactable)
                 {
-                    choiceSelected?.Invoke(index);
-                });
+                    btn.onClick.AddListener(() =>
+                    {
+                        choiceSelected?.Invoke(index);
+                    });
+                }
             }
         }
 
