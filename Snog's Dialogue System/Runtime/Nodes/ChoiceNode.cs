@@ -9,18 +9,13 @@ namespace SnogDialogue.Runtime
     [CreateNodeMenu("Snog/DialogueSystem/Lite/Choice")]
     public sealed class ChoiceNode : DialogueNode
     {
-        [SerializeField]
-        private LockedChoiceDisplay lockedChoiceDisplay = LockedChoiceDisplay.Hide;
+        [SerializeField] private LockedChoiceDisplay lockedChoiceDisplay = LockedChoiceDisplay.Hide;
 
-        [SerializeField]
-        private string lockedSuffix = " (Locked)";
+        [SerializeField] private string lockedSuffix = " (Locked)";
 
-        [SerializeField]
-        [Output(dynamicPortList = true)]
-        private List<ChoiceOption> options = new List<ChoiceOption>();
+        [SerializeField][Output(dynamicPortList = true)] private List<ChoiceOption> options = new List<ChoiceOption>();
 
-        [Output]
-        public int fallback;
+        [Output] public int fallback;
 
         public override IEnumerator Execute(DialogueRuntime runtime)
         {

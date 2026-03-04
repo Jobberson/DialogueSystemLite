@@ -6,11 +6,9 @@ namespace SnogDialogue.Runtime
     public sealed class DialogueRunner : MonoBehaviour
     {
         [Header("References")]
-        [SerializeField]
-        private MonoBehaviour uiBehaviour;
+        [SerializeField] private MonoBehaviour uiBehaviour;
 
-        [SerializeField]
-        private GlobalVariablesAsset globalVariablesAsset;
+        [SerializeField] private GlobalVariablesAsset globalVariablesAsset;
 
         private IDialogueUI ui;
         private DialogueContext context;

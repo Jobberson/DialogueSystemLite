@@ -6,8 +6,7 @@ namespace SnogDialogue.Runtime
 {
     public abstract class DialogueNode : Node
     {
-        [SerializeField]
-        private string nodeId;
+        [SerializeField] private string nodeId;
 
         public string NodeId
         {

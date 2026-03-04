@@ -7,8 +7,7 @@ namespace SnogDialogue.Runtime
     [CreateAssetMenu(menuName = "Snog/DialogueSystem/Variables/Global Variables Asset")]
     public sealed class GlobalVariablesAsset : ScriptableObject
     {
-        [SerializeField]
-        private List<VariableEntry> entries = new List<VariableEntry>();
+        [SerializeField] private List<VariableEntry> entries = new List<VariableEntry>();
 
         public VariableStore CreateRuntimeStore()
         {

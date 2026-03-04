@@ -3,11 +3,10 @@ using XNode;
 
 namespace SnogDialogue.Runtime
 {
-    [CreateAssetMenu(menuName = "Snog Dialogue/Dialogue Graph")]
+    [CreateAssetMenu(menuName = "Snog/DialogueSystem/Dialogue Graph")]
     public sealed class DialogueGraph : NodeGraph
     {
-        [SerializeField]
-        private string graphId;
+        [SerializeField] private string graphId;
 
         public string GraphId
         {

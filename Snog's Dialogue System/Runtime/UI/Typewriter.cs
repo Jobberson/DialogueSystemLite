@@ -7,24 +7,16 @@ namespace SnogDialogue.Runtime
 {
     public sealed class Typewriter : MonoBehaviour
     {
-        [SerializeField]
-        private TMP_Text target;
+        [SerializeField] private TMP_Text target;
 
-        [SerializeField]
-        [Min(1f)]
-        private float charactersPerSecond = 40f;
+        [SerializeField][Min(1f)] private float charactersPerSecond = 40f;
 
         [Header("Feel (Lite Polish)")]
-        [SerializeField]
-        [Min(1f)]
-        private float punctuationMultiplier = 6f;
+        [SerializeField][Min(1f)] private float punctuationMultiplier = 6f;
 
-        [SerializeField]
-        [Min(1f)]
-        private float newlineMultiplier = 4f;
+        [SerializeField][Min(1f)] private float newlineMultiplier = 4f;
 
-        [SerializeField]
-        private bool useUnscaledTime = false;
+        [SerializeField] private bool useUnscaledTime = false;
 
         private Coroutine typingCoroutine;
         private Action finishedCallback;
