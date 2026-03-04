@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using System.Text;
 using SnogDialogue.Runtime;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
+using XNode;
 
 namespace SnogDialogue.Editor
 {
@@ -11,9 +13,12 @@ namespace SnogDialogue.Editor
     public sealed class ChoiceNodeEditor : UnityEditor.Editor
     {
         private Label summaryLabel;
+        private ListView listView;
 
         public override VisualElement CreateInspectorGUI()
         {
+            ChoiceNode choiceNode = (ChoiceNode)target;
+
             SerializedProperty lockedDisplayProp = serializedObject.FindProperty("lockedChoiceDisplay");
             SerializedProperty lockedSuffixProp = serializedObject.FindProperty("lockedSuffix");
             SerializedProperty optionsProp = serializedObject.FindProperty("options");
@@ -30,7 +35,7 @@ namespace SnogDialogue.Editor
             root.Add(header);
 
             HelpBox info = new HelpBox(
-                "Lite: Options support conditions (Global + Graph-local). Locked options can be hidden or shown disabled.",
+                "Lite: Options support conditions. Use Up/Down to reorder while preserving xNode port connections.",
                 HelpBoxMessageType.Info
             );
 
@@ -46,11 +51,8 @@ namespace SnogDialogue.Editor
                 value = true
             };
 
-            PropertyField lockedDisplayField = new PropertyField(lockedDisplayProp, "Locked Choice Display");
-            PropertyField lockedSuffixField = new PropertyField(lockedSuffixProp, "Locked Suffix");
-
-            behaviorFoldout.Add(lockedDisplayField);
-            behaviorFoldout.Add(lockedSuffixField);
+            behaviorFoldout.Add(new PropertyField(lockedDisplayProp, "Locked Choice Display"));
+            behaviorFoldout.Add(new PropertyField(lockedSuffixProp, "Locked Suffix"));
             root.Add(behaviorFoldout);
 
             Foldout summaryFoldout = new Foldout
@@ -68,14 +70,12 @@ namespace SnogDialogue.Editor
 
             Foldout optionsFoldout = new Foldout
             {
-                text = "Options",
+                text = "Options (Reorderable)",
                 value = true
             };
 
-            PropertyField optionsField = new PropertyField(optionsProp, "Options");
-            optionsField.Bind(serializedObject);
-            optionsFoldout.Add(optionsField);
-            root.Add(optionsFoldout);
+            listView = CreateOptionsListView(choiceNode, optionsProp);
+            optionsFoldout.Add(listView);
 
             VisualElement buttonsRow = new VisualElement();
             buttonsRow.style.flexDirection = FlexDirection.Row;
@@ -83,6 +83,8 @@ namespace SnogDialogue.Editor
 
             Button addOptionButton = new Button(() =>
             {
+                Undo.RecordObject(choiceNode, "Add Choice Option");
+
                 serializedObject.Update();
 
                 int newIndex = optionsProp.arraySize;
@@ -95,7 +97,9 @@ namespace SnogDialogue.Editor
 
                 serializedObject.ApplyModifiedProperties();
 
-                RefreshWarningsAndSummary(optionsProp, warning);
+                EditorUtility.SetDirty(choiceNode);
+
+                RefreshAll(choiceNode, optionsProp, warning);
             })
             {
                 text = "Add Option"
@@ -103,16 +107,25 @@ namespace SnogDialogue.Editor
 
             Button removeLastButton = new Button(() =>
             {
+                if (optionsProp.arraySize <= 0)
+                {
+                    return;
+                }
+
+                Undo.RecordObject(choiceNode, "Remove Choice Option");
+
                 serializedObject.Update();
 
-                if (optionsProp.arraySize > 0)
-                {
-                    optionsProp.DeleteArrayElementAtIndex(optionsProp.arraySize - 1);
-                }
+                int indexToRemove = optionsProp.arraySize - 1;
+
+                ClearPortConnections(choiceNode, $"options {indexToRemove}");
+                optionsProp.DeleteArrayElementAtIndex(indexToRemove);
 
                 serializedObject.ApplyModifiedProperties();
 
-                RefreshWarningsAndSummary(optionsProp, warning);
+                EditorUtility.SetDirty(choiceNode);
+
+                RefreshAll(choiceNode, optionsProp, warning);
             })
             {
                 text = "Remove Last"
@@ -124,7 +137,9 @@ namespace SnogDialogue.Editor
 
             buttonsRow.Add(addOptionButton);
             buttonsRow.Add(removeLastButton);
-            root.Add(buttonsRow);
+
+            optionsFoldout.Add(buttonsRow);
+            root.Add(optionsFoldout);
 
             Foldout fallbackFoldout = new Foldout
             {
@@ -134,43 +149,284 @@ namespace SnogDialogue.Editor
 
             PropertyField fallbackField = new PropertyField(fallbackProp, "Fallback (Port Data)");
             fallbackField.SetEnabled(false);
+
             fallbackFoldout.Add(fallbackField);
             root.Add(fallbackFoldout);
 
-            RefreshWarningsAndSummary(optionsProp, warning);
-
-            optionsField.RegisterValueChangeCallback(_ =>
-            {
-                RefreshWarningsAndSummary(optionsProp, warning);
-            });
+            RefreshAll(choiceNode, optionsProp, warning);
 
             return root;
         }
 
-        private void RefreshWarningsAndSummary(SerializedProperty optionsProp, HelpBox warning)
+        private ListView CreateOptionsListView(ChoiceNode node, SerializedProperty optionsProp)
+        {
+            ListView lv = new ListView();
+            lv.style.marginTop = 6;
+            lv.style.borderTopWidth = 1;
+            lv.style.borderBottomWidth = 1;
+            lv.style.borderLeftWidth = 1;
+            lv.style.borderRightWidth = 1;
+
+            lv.itemsSource = new List<int>();
+            lv.fixedItemHeight = 58;
+            lv.selectionType = SelectionType.None;
+
+            lv.makeItem = () =>
+            {
+                VisualElement row = new VisualElement();
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.alignItems = Align.Center;
+                row.style.paddingLeft = 6;
+                row.style.paddingRight = 6;
+
+                VisualElement left = new VisualElement();
+                left.style.flexGrow = 1;
+                left.style.flexDirection = FlexDirection.Column;
+
+                Label title = new Label();
+                title.name = "title";
+                title.style.unityFontStyleAndWeight = FontStyle.Bold;
+
+                Label meta = new Label();
+                meta.name = "meta";
+                meta.style.opacity = 0.75f;
+
+                TextField textField = new TextField("Text");
+                textField.name = "inlineText";
+                textField.style.marginTop = 4;
+
+                left.Add(title);
+                left.Add(meta);
+                left.Add(textField);
+
+                VisualElement right = new VisualElement();
+                right.style.flexDirection = FlexDirection.Column;
+                right.style.marginLeft = 8;
+
+                Button upButton = new Button(() =>
+                {
+                    int index = (int)row.userData;
+                    MoveOption(node, index, index - 1, optionsProp);
+                })
+                {
+                    text = "▲"
+                };
+
+                Button downButton = new Button(() =>
+                {
+                    int index = (int)row.userData;
+                    MoveOption(node, index, index + 1, optionsProp);
+                })
+                {
+                    text = "▼"
+                };
+
+                upButton.style.width = 32;
+                downButton.style.width = 32;
+
+                right.Add(upButton);
+                right.Add(downButton);
+
+                row.Add(left);
+                row.Add(right);
+
+                return row;
+            };
+
+            lv.bindItem = (element, i) =>
+            {
+                serializedObject.Update();
+
+                int count = optionsProp.arraySize;
+
+                if (i < 0 || i >= count)
+                {
+                    return;
+                }
+
+                element.userData = i;
+
+                SerializedProperty optionProp = optionsProp.GetArrayElementAtIndex(i);
+                SerializedProperty inlineTextProp = optionProp.FindPropertyRelative("InlineText");
+                SerializedProperty conditionsProp = optionProp.FindPropertyRelative("Conditions");
+
+                Label title = element.Q<Label>("title");
+                Label meta = element.Q<Label>("meta");
+                TextField textField = element.Q<TextField>("inlineText");
+
+                int conditionsCount = conditionsProp != null && conditionsProp.isArray ? conditionsProp.arraySize : 0;
+
+                string labelText = inlineTextProp != null ? inlineTextProp.stringValue : string.Empty;
+                labelText = string.IsNullOrWhiteSpace(labelText) ? $"Choice {i + 1}" : labelText;
+
+                title.text = $"{i + 1}) {Truncate(labelText, 60)}";
+                meta.text = $"Conditions: {conditionsCount}";
+
+                if (textField != null && inlineTextProp != null)
+                {
+                    textField.Unbind();
+                    textField.bindingPath = inlineTextProp.propertyPath;
+                    textField.Bind(serializedObject);
+
+                    textField.RegisterValueChangedCallback(_ =>
+                    {
+                        RefreshSummary(node, optionsProp);
+                    });
+                }
+
+                Button upButton = element.Q<Button>(null, "unity-button");
+                List<Button> buttons = element.Query<Button>().ToList();
+
+                if (buttons.Count >= 2)
+                {
+                    Button up = buttons[0];
+                    Button down = buttons[1];
+
+                    up.SetEnabled(i > 0);
+                    down.SetEnabled(i < count - 1);
+                }
+            };
+
+            RefreshListViewItems(lv, optionsProp);
+
+            return lv;
+        }
+
+        private void MoveOption(ChoiceNode node, int fromIndex, int toIndex, SerializedProperty optionsProp)
         {
             serializedObject.Update();
 
-            if (optionsProp.arraySize == 0)
+            int count = optionsProp.arraySize;
+
+            if (fromIndex < 0 || fromIndex >= count)
             {
-                warning.text = "This Choice node has 0 options. It will follow the fallback output if connected.";
-                warning.style.display = DisplayStyle.Flex;
-            }
-            else
-            {
-                warning.style.display = DisplayStyle.None;
+                return;
             }
 
-            if (summaryLabel != null)
+            if (toIndex < 0 || toIndex >= count)
             {
-                summaryLabel.text = BuildSummaryText(optionsProp);
+                return;
+            }
+
+            if (fromIndex == toIndex)
+            {
+                return;
+            }
+
+            // Keep option-to-connection mapping correct by swapping the connections of the involved ports.
+            // Then move the array element (so the data order matches the visual order).
+            Undo.RecordObject(node, "Reorder Choice Options");
+
+            SwapPortConnections(node, $"options {fromIndex}", $"options {toIndex}");
+
+            optionsProp.MoveArrayElement(fromIndex, toIndex);
+
+            serializedObject.ApplyModifiedProperties();
+
+            EditorUtility.SetDirty(node);
+
+            RefreshAll(node, optionsProp, null);
+        }
+
+        private void SwapPortConnections(Node node, string portAName, string portBName)
+        {
+            NodePort portA = node.GetOutputPort(portAName);
+            NodePort portB = node.GetOutputPort(portBName);
+
+            if (portA == null || portB == null)
+            {
+                return;
+            }
+
+            List<NodePort> aConnections = new List<NodePort>(portA.GetConnections());
+            List<NodePort> bConnections = new List<NodePort>(portB.GetConnections());
+
+            portA.ClearConnections();
+            portB.ClearConnections();
+
+            for (int i = 0; i < bConnections.Count; i++)
+            {
+                portA.Connect(bConnections[i]);
+            }
+
+            for (int i = 0; i < aConnections.Count; i++)
+            {
+                portB.Connect(aConnections[i]);
+            }
+        }
+
+        private void ClearPortConnections(Node node, string portName)
+        {
+            NodePort port = node.GetOutputPort(portName);
+
+            if (port == null)
+            {
+                return;
+            }
+
+            port.ClearConnections();
+        }
+
+        private void RefreshAll(ChoiceNode node, SerializedProperty optionsProp, HelpBox warning)
+        {
+            if (warning != null)
+            {
+                serializedObject.Update();
+
+                if (optionsProp.arraySize == 0)
+                {
+                    warning.text = "This Choice node has 0 options. It will follow the fallback output if connected.";
+                    warning.style.display = DisplayStyle.Flex;
+                }
+                else
+                {
+                    warning.style.display = DisplayStyle.None;
+                }
+            }
+
+            RefreshSummary(node, optionsProp);
+
+            if (listView != null)
+            {
+                RefreshListViewItems(listView, optionsProp);
+                listView.Rebuild();
+            }
+        }
+
+        private void RefreshSummary(ChoiceNode node, SerializedProperty optionsProp)
+        {
+            if (summaryLabel == null)
+            {
+                return;
+            }
+
+            summaryLabel.text = BuildSummaryText(optionsProp);
+        }
+
+        private void RefreshListViewItems(ListView lv, SerializedProperty optionsProp)
+        {
+            int count = optionsProp.arraySize;
+
+            List<int> items = lv.itemsSource as List<int>;
+
+            if (items == null)
+            {
+                items = new List<int>();
+                lv.itemsSource = items;
+            }
+
+            items.Clear();
+
+            for (int i = 0; i < count; i++)
+            {
+                items.Add(i);
             }
         }
 
         private string BuildSummaryText(SerializedProperty optionsProp)
         {
             int total = optionsProp.arraySize;
-            int lockedByConditions = 0;
+            int withConditions = 0;
 
             StringBuilder sb = new StringBuilder();
             sb.AppendLine($"Total Options: {total}");
@@ -188,19 +444,19 @@ namespace SnogDialogue.Editor
 
                 if (conditionCount > 0)
                 {
-                    lockedByConditions++;
+                    withConditions++;
                 }
 
                 sb.AppendLine($"{i + 1}) \"{text}\"  | Conditions: {conditionCount}");
             }
 
             sb.AppendLine();
-            sb.AppendLine($"Options With Conditions: {lockedByConditions}");
+            sb.AppendLine($"Options With Conditions: {withConditions}");
 
             return sb.ToString();
         }
 
-        private string Truncate(string value, int max)
+        private static string Truncate(string value, int max)
         {
             if (string.IsNullOrEmpty(value))
             {
