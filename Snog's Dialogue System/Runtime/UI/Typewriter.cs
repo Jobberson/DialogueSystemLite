@@ -35,7 +35,7 @@ namespace SnogDialogue.Runtime
             private set;
         }
 
-        public void Play(string text, Action onFinished)
+        public void Play(string text, float speedMultiplier, Action onFinished)
         {
             if (target == null)
             {
@@ -50,7 +50,8 @@ namespace SnogDialogue.Runtime
             target.maxVisibleCharacters = 0;
             target.ForceMeshUpdate();
 
-            typingCoroutine = StartCoroutine(TypeRoutine());
+            float clampedMultiplier = Mathf.Max(0.05f, speedMultiplier);
+            typingCoroutine = StartCoroutine(TypeRoutine(clampedMultiplier));
         }
 
         public void SkipToEnd()
@@ -78,11 +79,12 @@ namespace SnogDialogue.Runtime
             StopTypingInternal(invokeFinished: false);
         }
 
-        private IEnumerator TypeRoutine()
+        private IEnumerator TypeRoutine(float speedMultiplier)
         {
             IsTyping = true;
 
-            float baseDelay = 1f / Mathf.Max(1f, charactersPerSecond);
+            float effectiveSpeed = Mathf.Max(1f, charactersPerSecond * speedMultiplier);
+            float baseDelay = 1f / effectiveSpeed;
 
             target.ForceMeshUpdate();
 

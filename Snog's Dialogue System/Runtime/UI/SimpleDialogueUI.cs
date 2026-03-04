@@ -48,7 +48,7 @@ namespace SnogDialogue.Runtime
             Hide();
         }
 
-        public void ShowLine(string text, Action onContinueRequested)
+        public void ShowLine(string text, LineUIOptions options, Action onContinueRequested)
         {
             continueRequested = onContinueRequested;
 
@@ -61,7 +61,7 @@ namespace SnogDialogue.Runtime
 
             if (typewriter != null)
             {
-                typewriter.Play(fullLine, null);
+                typewriter.Play(fullLine, options.SpeedMultiplier, null);
             }
             else
             {

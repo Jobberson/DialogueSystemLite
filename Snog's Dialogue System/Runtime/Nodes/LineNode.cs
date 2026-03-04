@@ -14,6 +14,10 @@ namespace SnogDialogue.Runtime
 
         public string[] tags;
 
+        [Header("Typewriter")]
+        [Min(0.05f)]
+        public float speedMultiplier = 1f;
+
         [Output]
         public int next;
 
@@ -21,9 +25,16 @@ namespace SnogDialogue.Runtime
         {
             string textToShow = inlineText;
 
+            if (string.IsNullOrWhiteSpace(textToShow))
+            {
+                textToShow = "[Missing line text]";
+            }
+
             bool done = false;
 
-            runtime.UI.ShowLine(textToShow, () =>
+            LineUIOptions options = new LineUIOptions(speedMultiplier);
+
+            runtime.UI.ShowLine(textToShow, options, () =>
             {
                 done = true;
             });
