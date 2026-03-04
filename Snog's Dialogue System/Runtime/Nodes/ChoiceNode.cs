@@ -6,20 +6,33 @@ using XNode;
 
 namespace SnogDialogue.Runtime
 {
-    [CreateNodeMenu("Snog/DialogueSystem/Lite/Choice")]
+    [CreateNodeMenu("Snog Dialogue/Lite/Choice")]
     public sealed class ChoiceNode : DialogueNode
     {
         [SerializeField]
         [Output(dynamicPortList = true)]
         private List<ChoiceOption> options = new List<ChoiceOption>();
 
+        [Output]
+        public int fallback;
+
         public override IEnumerator Execute(DialogueRuntime runtime)
         {
             List<string> labels = new List<string>(options.Count);
+            List<int> optionIndexMap = new List<int>(options.Count);
 
             for (int i = 0; i < options.Count; i++)
             {
-                string label = options[i].InlineText;
+                ChoiceOption option = options[i];
+
+                bool allowed = ConditionEvaluator.EvaluateAll(option.Conditions, runtime.Context);
+
+                if (!allowed)
+                {
+                    continue;
+                }
+
+                string label = option.InlineText;
 
                 if (string.IsNullOrWhiteSpace(label))
                 {
@@ -27,21 +40,30 @@ namespace SnogDialogue.Runtime
                 }
 
                 labels.Add(label);
+                optionIndexMap.Add(i);
             }
 
-            int selectedIndex = -1;
+            if (labels.Count == 0)
+            {
+                runtime.SetNext(GetNextFromPort("fallback"));
+                yield break;
+            }
+
+            int selectedVisibleIndex = -1;
 
             runtime.UI.ShowChoices(labels, (index) =>
             {
-                selectedIndex = index;
+                selectedVisibleIndex = index;
             });
 
-            while (selectedIndex < 0)
+            while (selectedVisibleIndex < 0)
             {
                 yield return null;
             }
 
-            DialogueNode next = GetNextFromDynamicPort("options", selectedIndex);
+            int originalIndex = optionIndexMap[selectedVisibleIndex];
+
+            DialogueNode next = GetNextFromDynamicPort("options", originalIndex);
             runtime.SetNext(next);
         }
 
@@ -69,6 +91,8 @@ namespace SnogDialogue.Runtime
             public string InlineText;
             public string LocalizationKey;
             public string[] Tags;
+
+            public Condition[] Conditions;
         }
     }
 }
