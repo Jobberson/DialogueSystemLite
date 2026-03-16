@@ -9,13 +9,8 @@ namespace SnogDialogue.Editor
     [CustomNodeEditor(typeof(ChoiceNode))]
     public sealed class ChoiceNodeGraphEditor : NodeEditor
     {
-        private static readonly GUIStyle _labelStyle = new GUIStyle();
-        private static bool _stylesInitialized;
-
         public override void OnBodyGUI()
         {
-            EnsureStyles();
-
             ChoiceNode node = (ChoiceNode)target;
             serializedObject.Update();
 
@@ -24,48 +19,33 @@ namespace SnogDialogue.Editor
 
             EditorGUILayout.Space(2);
 
-            // One labelled output port per choice option
+            // One labelled output port per option
             for (int i = 0; i < node.OptionCount; i++)
             {
-                string label = Truncate(node.GetOptionLabel(i), 28);
                 NodePort port = node.GetOutputPort($"outputs {i}");
-
                 if (port != null)
                 {
+                    string label = Truncate(node.GetOptionLabel(i), 26);
                     NodeEditorGUILayout.PortField(new GUIContent(label), port);
                 }
             }
 
             if (node.OptionCount == 0)
             {
-                EditorGUILayout.HelpBox("No options. Add some in the Inspector.", MessageType.Warning);
+                EditorGUILayout.HelpBox("No options.", MessageType.Warning);
             }
 
             EditorGUILayout.Space(2);
 
-            // Fallback port
+            // Fallback
             NodeEditorGUILayout.PortField(new GUIContent("Fallback"), node.GetOutputPort("fallback"));
 
             serializedObject.ApplyModifiedProperties();
         }
 
-        private static void EnsureStyles()
-        {
-            if (_stylesInitialized)
-            {
-                return;
-            }
-
-            _stylesInitialized = true;
-        }
-
         private static string Truncate(string value, int max)
         {
-            if (string.IsNullOrEmpty(value) || value.Length <= max)
-            {
-                return value;
-            }
-
+            if (string.IsNullOrEmpty(value) || value.Length <= max) return value;
             return value.Substring(0, max - 1) + "…";
         }
     }
