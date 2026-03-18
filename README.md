@@ -66,7 +66,7 @@ The highlight is the **authoring experience**: reorder choices while preserving 
 
 </details>
 
-<details>
+<details open>
 <summary><strong>🖼️ Built‑in UI</strong></summary>
 <br>
 
