@@ -33,7 +33,7 @@ The highlight is the **authoring experience**: reorder choices while preserving 
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Roadmap](#roadmap)
-- [Pro Version (Light Mention)](#pro-version-light-mention)
+- [Pro Version](#pro-version-light-mention)
 - [Contributing](#contributing)
 - [License](#license)
 - [Author](#author)
