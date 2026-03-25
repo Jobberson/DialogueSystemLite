@@ -74,14 +74,63 @@ namespace SnogDialogue.Runtime
         /// <summary>Immediately stops the current dialogue and fires OnDialogueFinished.</summary>
         public void Stop()
         {
-            if (playCoroutine != null)
-            {
-                StopCoroutine(playCoroutine);
-                playCoroutine = null;
-            }
+            if (playCoroutine == null) return;
+
+            StopCoroutine(playCoroutine);
+            playCoroutine = null;
 
             ui?.Hide();
             OnDialogueFinished?.Invoke();
+        }
+
+        // ── Convenience variable API ──────────────────────────────────────────
+
+        /// <summary>Sets a global bool. Safe to call before the first Play().</summary>
+        public void SetGlobalBool(string key, bool value) =>
+            GlobalVariables?.Set(key, DialogueValue.FromBool(value));
+
+        /// <summary>Gets a global bool, returning <paramref name="fallback"/> if the key doesn't exist.</summary>
+        public bool GetGlobalBool(string key, bool fallback = false)
+        {
+            if (GlobalVariables != null && GlobalVariables.TryGet(key, out DialogueValue v))
+                return v.BoolValue;
+            return fallback;
+        }
+
+        /// <summary>Sets a global int. Safe to call before the first Play().</summary>
+        public void SetGlobalInt(string key, int value) =>
+            GlobalVariables?.Set(key, DialogueValue.FromInt(value));
+
+        /// <summary>Gets a global int, returning <paramref name="fallback"/> if the key doesn't exist.</summary>
+        public int GetGlobalInt(string key, int fallback = 0)
+        {
+            if (GlobalVariables != null && GlobalVariables.TryGet(key, out DialogueValue v))
+                return v.IntValue;
+            return fallback;
+        }
+
+        /// <summary>Sets a global float. Safe to call before the first Play().</summary>
+        public void SetGlobalFloat(string key, float value) =>
+            GlobalVariables?.Set(key, DialogueValue.FromFloat(value));
+
+        /// <summary>Gets a global float, returning <paramref name="fallback"/> if the key doesn't exist.</summary>
+        public float GetGlobalFloat(string key, float fallback = 0f)
+        {
+            if (GlobalVariables != null && GlobalVariables.TryGet(key, out DialogueValue v))
+                return v.FloatValue;
+            return fallback;
+        }
+
+        /// <summary>Sets a global string. Safe to call before the first Play().</summary>
+        public void SetGlobalString(string key, string value) =>
+            GlobalVariables?.Set(key, DialogueValue.FromString(value));
+
+        /// <summary>Gets a global string, returning <paramref name="fallback"/> if the key doesn't exist.</summary>
+        public string GetGlobalString(string key, string fallback = "")
+        {
+            if (GlobalVariables != null && GlobalVariables.TryGet(key, out DialogueValue v))
+                return v.StringValue;
+            return fallback;
         }
 
         // ── Private ───────────────────────────────────────────────────────────
@@ -151,11 +200,35 @@ namespace SnogDialogue.Runtime
                 yield break;
             }
 
+            int safetyCounter = 0;
+
             while (current != null)
             {
+                if (++safetyCounter > 2000)
+                {
+                    Debug.LogError(
+                        $"[DialogueRunner] Possible infinite loop detected in graph '{graph.name}' " +
+                        "after 2000 node executions. Stopping dialogue to prevent a hang. " +
+                        "Check for cycles in your graph.",
+                        this
+                    );
+                    break;
+                }
+
+                DialogueNode previous = current;
                 runtime.ClearNext();
                 yield return current.Execute(runtime);
                 current = runtime.NextNode;
+
+                if (current == null && !(previous is EndNode))
+                {
+                    Debug.LogWarning(
+                        $"[DialogueRunner] Dialogue in graph '{graph.name}' reached node " +
+                        $"'{previous.GetType().Name}' (ID: {previous.NodeId}) with no outgoing connection. " +
+                        "The dialogue will end here. Connect the output port to continue or add an End node.",
+                        this
+                    );
+                }
             }
 
             ui?.Hide();

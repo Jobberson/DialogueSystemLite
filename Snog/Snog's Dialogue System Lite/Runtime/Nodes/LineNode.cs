@@ -37,7 +37,7 @@ namespace SnogDialogue.Runtime
 
             bool done = false;
 
-            LineUIOptions options = new LineUIOptions(speedMultiplier, speakerName);
+            LineUIOptions options = new LineUIOptions(speedMultiplier, speakerName, tags);
 
             runtime.UI.ShowLine(textToShow, options, () =>
             {

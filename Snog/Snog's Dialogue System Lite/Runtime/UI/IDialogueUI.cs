@@ -22,17 +22,23 @@ namespace SnogDialogue.Runtime
             get;
         }
 
-        public LineUIOptions(float speedMultiplier, string speakerName = "")
+        public string[] Tags
+        {
+            get;
+        }
+
+        public LineUIOptions(float speedMultiplier, string speakerName = "", string[] tags = null)
         {
             SpeedMultiplier = speedMultiplier;
             SpeakerName = speakerName ?? string.Empty;
+            Tags = tags;
         }
 
         public static LineUIOptions Default
         {
             get
             {
-                return new LineUIOptions(1f, string.Empty);
+                return new LineUIOptions(1f, string.Empty, null);
             }
         }
     }

@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace SnogDialogue.Runtime
 {
     public static class ConditionEvaluator
@@ -135,7 +137,7 @@ namespace SnogDialogue.Runtime
                     return a.IntValue == b.IntValue;
 
                 case DialogueValueType.Float:
-                    return a.FloatValue == b.FloatValue;
+                    return Mathf.Approximately(a.FloatValue, b.FloatValue);
 
                 case DialogueValueType.Bool:
                     return a.BoolValue == b.BoolValue;
