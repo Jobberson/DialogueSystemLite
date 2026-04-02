@@ -5,8 +5,6 @@
 **A lightweight, node‑based dialogue framework for Unity.**  
 Node Graphs · Conditional Choices · Variables · Typewriter · Simple UI · Open Source
 
----
-
 [![Unity](https://img.shields.io/badge/Unity-6000.3.x-black?style=flat-square&logo=unity&logoColor=white)](https://unity.com)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](#license)
 [![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)](#)
